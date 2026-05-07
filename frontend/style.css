@@ -1,0 +1,220 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0a0a0f;
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+}
+
+/* Map takes 65% */
+#map-container {
+  flex: 0 0 65%;
+  height: 100%;
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+#reset-view {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  background: rgba(10, 10, 15, 0.85);
+  color: #00ff88;
+  border: 1px solid #1a3a2a;
+  padding: 6px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#reset-view:hover {
+  background: #1a3a2a;
+}
+
+/* Board takes 35% */
+#board {
+  flex: 0 0 35%;
+  height: 100%;
+  background: #0a0a0f;
+  border-left: 1px solid #1a3a2a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#board-header {
+  padding: 16px 20px 8px;
+  border-bottom: 1px solid #1a3a2a;
+}
+
+#board-header h1 {
+  font-size: 24px;
+  color: #00ff88;
+  letter-spacing: 4px;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+#flight-count {
+  font-size: 12px;
+  color: #4a8a6a;
+  margin-top: 4px;
+}
+
+#legend {
+  font-size: 11px;
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+}
+
+/* AI Spotlight */
+#spotlight {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #0f1a15, #0a1510);
+  border-bottom: 1px solid #1a3a2a;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+#spotlight-text {
+  font-size: 13px;
+  color: #ffcc00;
+  text-shadow: 0 0 8px rgba(255, 204, 0, 0.3);
+  line-height: 1.4;
+}
+
+#spotlight.active {
+  animation: spotlight-glow 2s ease-in-out;
+}
+
+@keyframes spotlight-glow {
+  0% { background: #0f1a15; }
+  50% { background: #1a2a1f; }
+  100% { background: #0f1a15; }
+}
+
+/* Flight list */
+#flight-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.flight-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 70px;
+  padding: 6px 20px;
+  font-size: 12px;
+  border-bottom: 1px solid #0f1f18;
+  transition: background 0.3s;
+}
+
+.flight-row:hover {
+  background: #0f1f18;
+  cursor: pointer;
+}
+
+.flight-callsign {
+  color: #00ff88;
+  font-weight: bold;
+}
+
+.flight-info {
+  color: #4a8a6a;
+}
+
+.flight-alt {
+  color: #4a8a6a;
+  text-align: right;
+}
+
+/* Community section */
+#community-section {
+  padding: 12px 20px;
+  border-top: 1px solid #1a3a2a;
+  background: #0a0f0d;
+}
+
+#community-count {
+  font-size: 11px;
+  color: #4a8a6a;
+  margin-bottom: 8px;
+}
+
+#add-city-btn {
+  background: #1a3a2a;
+  color: #00ff88;
+  border: 1px solid #2a5a3a;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#add-city-btn:hover {
+  background: #2a5a3a;
+}
+
+#city-form {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+#city-form.hidden { display: none; }
+
+#city-input {
+  flex: 1;
+  background: #0f1f18;
+  border: 1px solid #2a5a3a;
+  color: #00ff88;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+#city-form button {
+  background: #2a5a3a;
+  color: #00ff88;
+  border: none;
+  padding: 6px 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Scrollbar */
+#flight-list::-webkit-scrollbar { width: 4px; }
+#flight-list::-webkit-scrollbar-track { background: #0a0a0f; }
+#flight-list::-webkit-scrollbar-thumb { background: #1a3a2a; }
+
+/* Flight info popup */
+.flight-popup .mapboxgl-popup-content {
+  background: #0a0f0d;
+  border: 1px solid #1a3a2a;
+  border-radius: 4px;
+  padding: 12px;
+  font-family: 'Courier New', monospace;
+  color: #00ff88;
+  min-width: 180px;
+}
+.flight-popup { z-index: 100; }
+.flight-popup .mapboxgl-popup-tip { border-top-color: #1a3a2a; }
+.popup-callsign { font-size: 14px; font-weight: bold; color: #00ff88; margin-bottom: 4px; }
+.popup-route { font-size: 16px; color: #ffcc00; margin: 4px 0; }
+.popup-detail { font-size: 11px; color: #4a8a6a; }
+.popup-link { font-size: 11px; color: #00ccff; text-decoration: none; display: block; margin-top: 6px; }
+.popup-link:hover { text-decoration: underline; }
+.popup-loading { font-size: 12px; color: #4a8a6a; }

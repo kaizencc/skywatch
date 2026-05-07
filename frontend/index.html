@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyWatch — Live Flight Tracker</title>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Map -->
+    <div id="map-container">
+      <div id="map"></div>
+      <button id="reset-view" onclick="map.flyTo({center: [-118.1514, 33.8177], zoom: 9, duration: 800})">⟲ Reset View</button>
+    </div>
+
+    <!-- Flight board -->
+    <div id="board">
+      <div id="board-header">
+        <h1>✈ SKYWATCH</h1>
+        <div id="flight-count">— flights overhead</div>
+        <div id="legend">
+          <span style="color:#00ccff">● arriving</span>
+          <span style="color:#ff9900">● departing</span>
+          <span style="color:#00ff88">● cruising</span>
+        </div>
+      </div>
+
+      <!-- AI Spotlight -->
+      <div id="spotlight">
+        <div id="spotlight-text">Waiting for AI spotter...</div>
+      </div>
+
+      <!-- Flight list -->
+      <div id="flight-list"></div>
+
+      <!-- Community -->
+      <div id="community-section">
+        <div id="community-count">0 PyCon attendees tracked</div>
+        <button id="add-city-btn" onclick="toggleCityForm()">+ Add Your City</button>
+        <div id="city-form" class="hidden">
+          <input id="city-input" type="text" placeholder="City name (e.g. Chicago)">
+          <button onclick="submitCity()">Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="map.js"></script>
+  <script src="board.js"></script>
+</body>
+</html>
