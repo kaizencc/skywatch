@@ -2,15 +2,6 @@
 
 A live AI-narrated flight tracker for the airspace above PyCon, deployed with Python CDK.
 
-## Demo Flow (5 minutes)
-
-1. **The app** — Map is live, planes moving over Long Beach. AI "Spotted" callout flags interesting flights. "This is the sky above us right now."
-2. **There's a bug** — The AI spotter never fires. Show the AccessDenied error in logs. "Missing IAM permission."
-3. **Quick fix (wrong)** — Add `bedrock:InvokeModel` with `Resource: *`. Run `cdk deploy`. **Blocked by CDK Nag validation.** "CDK just stopped me from shipping a security issue."
-4. **Fix it right** — Scope the resource to the specific Bedrock model ARN. `cdk deploy` again. Passes. Deploys.
-5. **It works** — AI spotter lights up: "✨ Spotted: Qantas A380 to Sydney." "That was: find a bug, fix it, get stopped by a guardrail, fix it right, deploy. All in Python."
-6. **Community** — QR code: "Add your city to the map."
-
 ## Architecture
 
 ```mermaid

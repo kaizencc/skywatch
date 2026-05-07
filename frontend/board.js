@@ -42,3 +42,8 @@ async function submitCity() {
     alert('Something went wrong. Try again.');
   }
 }
+
+async function resetCommunity() {
+  await fetch(`${API_URL}/community`, { method: 'DELETE' });
+  updateCommunity();
+}

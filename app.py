@@ -12,14 +12,13 @@ if _env_file.exists():
             os.environ.setdefault(key.strip(), value.strip())
 
 import aws_cdk as cdk
-# from cdk_nag import AwsSolutionsChecks  # Re-enable for demo
+from cdk_nag import AwsSolutionsChecks
 
 from skywatch.stack import SkywatchStack
 
 app = cdk.App()
 SkywatchStack(app, "SkyWatch")
 
-# Disabled for testing — re-enable for demo rehearsal
-# cdk.Aspects.of(app).add(AwsSolutionsChecks())
+cdk.Aspects.of(app).add(AwsSolutionsChecks())
 
 app.synth()

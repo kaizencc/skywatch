@@ -58,6 +58,8 @@ def handler(event, context):
         return get_flight_info(callsign)
     elif path == "/community" and method == "POST":
         return add_community_city(event)
+    elif path == "/community" and method == "DELETE":
+        return clear_community()
     elif path == "/community" and method == "GET":
         return get_community_cities()
     else:
@@ -186,6 +188,16 @@ def get_community_cities():
     )
     cities = resp.get("Items", [])
     return response(200, {"cities": cities, "count": len(cities)})
+
+
+def clear_community():
+    resp = table.query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("pk").eq("COMMUNITY"),
+    )
+    with table.batch_writer() as batch:
+        for item in resp.get("Items", []):
+            batch.delete_item(Key={"pk": item["pk"], "sk": item["sk"]})
+    return response(200, {"message": "Community cleared"})
 
 
 def get_flight_info(callsign):

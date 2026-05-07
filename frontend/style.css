@@ -168,6 +168,22 @@ body {
   background: #2a5a3a;
 }
 
+#reset-community-btn {
+  background: transparent;
+  color: #4a8a6a;
+  border: 1px solid #1a3a2a;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+#reset-community-btn:hover {
+  color: #ff4444;
+  border-color: #ff4444;
+}
+
 #city-form {
   margin-top: 8px;
   display: flex;
