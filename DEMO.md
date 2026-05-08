@@ -10,6 +10,10 @@ cp demo/stages/stack_stage1.py skywatch/stack.py  # Base app
 cp demo/stages/stack_stage2.py skywatch/stack.py  # + CDK Nag
 cp demo/stages/stack_stage3.py skywatch/stack.py  # + AI (blocked)
 cp demo/stages/stack_stage4.py skywatch/stack.py  # + AI (fixed)
+
+# Handler files:
+cp demo/stages/handler_before.py skywatch/lambdas/api/handler.py  # Without AI
+cp demo/stages/handler_after.py skywatch/lambdas/api/handler.py   # With AI
 ```
 
 ---
@@ -20,7 +24,11 @@ cp demo/stages/stack_stage4.py skywatch/stack.py  # + AI (fixed)
 - Browser open to https://d2d8g1kdqdl9kt.cloudfront.net
 - VS Code open to the project root
 - Terminal ready with `source .venv/bin/activate`
-- Start with `demo/stages/stack_stage1.py` as your `skywatch/stack.py`
+- Start with stage 1 files:
+  ```bash
+  cp demo/stages/stack_stage1.py skywatch/stack.py
+  cp demo/stages/handler_before.py skywatch/lambdas/api/handler.py
+  ```
 - CDK Nag **disabled** in `app.py` (comment out the two lines)
 
 ---
@@ -105,9 +113,68 @@ cdk synth
 
 ## Stage 4: Build the AI Feature — Gets Blocked (2 min)
 
-> "I want Claude to narrate the flights — click a plane, get an AI-generated blurb. We need Bedrock access from our API Lambda."
+> "I want Claude to narrate the flights — click a plane, get an AI-generated blurb. We need two things: the Lambda code to call Bedrock, and the IAM permission to allow it."
 
-**[Add `MODEL_ID` to the API Lambda's environment dict:]**
+**[Show what we're adding to `handler.py`. Open `skywatch/lambdas/api/handler.py`.]**
+
+> "Here's the Python code that calls Bedrock. It's ~30 lines."
+
+**[Add these lines near the top (after the other imports/clients):]**
+
+```python
+MODEL_ID = os.environ.get("MODEL_ID", "")
+bedrock = boto3.client("bedrock-runtime")
+```
+
+**[Add this route in the `handler()` function, before the `elif path == "/spotlight":` line:]**
+
+```python
+    elif path == "/spotlight" and method == "POST":
+        return generate_spotlight(event)
+```
+
+**[Add this function (after `get_spotlight`):]**
+
+```python
+def generate_spotlight(event):
+    """Generate an AI blurb for a user-selected flight."""
+    body = json.loads(event.get("body", "{}"))
+    callsign = body.get("callsign", "").strip()
+    icao24 = body.get("icao24", "")
+    flight_info = body.get("flight_info", {})
+
+    # Build a prompt with whatever flight info we have
+    details = "\n".join(
+        f"{k}: {v}" for k, v in flight_info.items() if v
+    ) or "No details available"
+
+    prompt = f"""You are an aviation spotter at PyCon in Long Beach, CA.
+A viewer clicked on flight {callsign}:
+{details}
+Write one punchy sentence starting with "✨ Spotted:" """
+
+    resp = bedrock.invoke_model(
+        modelId=MODEL_ID,
+        body=json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 150,
+            "messages": [{"role": "user", "content": prompt}],
+        }),
+    )
+    result = json.loads(resp["body"].read())
+    text = result["content"][0]["text"].strip()
+
+    table.put_item(Item={
+        "pk": "SPOTLIGHT", "sk": "current",
+        "text": text, "icao24": icao24,
+        "updated": int(time.time()), "ttl": int(time.time()) + 300,
+    })
+    return response(200, {"text": text, "icao24": icao24})
+```
+
+> "That's it. Parse the request, build a prompt, call Claude, store the result. Now we need the infrastructure to allow it."
+
+**[Switch to `stack.py`. Add `MODEL_ID` to the API Lambda's environment dict:]**
 
 ```python
             environment={
@@ -140,7 +207,13 @@ AwsSolutions-IAM5[Resource::*]: The IAM entity contains wildcard permissions
 and does not have a cdk-nag rule suppression with evidence for those permission.
 ```
 
-> "Blocked. CDK Nag caught that `Resource: *` gives this Lambda access to every model in Bedrock — not just the one we need. This is the guardrail working. It won't let me deploy an overly permissive policy."
+> "Blocked. CDK Nag caught that `Resource: *` gives this Lambda access to every model in Bedrock — not just the one we need. It won't let me deploy an overly permissive policy."
+
+**Backup:** If you don't want to type the handler code live:
+```bash
+cp demo/stages/handler_after.py skywatch/lambdas/api/handler.py
+cp demo/stages/stack_stage3.py skywatch/stack.py
+```
 
 ---
 
