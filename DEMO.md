@@ -4,15 +4,7 @@
 
 Build an AI feature live on stage, get blocked by a security guardrail, fix it, deploy it.
 
-**Stages:**
-1. Show the live app (planes on a map)
-2. Walk through the CDK code — `cdk synth`
-3. Add CDK Nag for best practices
-4. Build an AI spotlight feature (connect to Bedrock)
-5. Get blocked by CDK Nag (overly permissive IAM)
-6. Fix it, deploy, see it work
-
-**Backup files:** If you get stuck at any stage, copy the corresponding file from `demo/stages/` into `skywatch/stack.py`:
+**Backup files:** If you get stuck at any stage, copy the corresponding file:
 ```bash
 cp demo/stages/stack_stage1.py skywatch/stack.py  # Base app
 cp demo/stages/stack_stage2.py skywatch/stack.py  # + CDK Nag
@@ -51,15 +43,14 @@ Click around — show the flight list, click a plane, show the popup with Flight
 
 > "This is the entire infrastructure. ~100 lines of Python."
 
-Highlight:
-- DynamoDB table (5 lines)
-- Lambda functions (10 lines each)
-- API Gateway with routes (10 lines)
-- S3 + CloudFront (15 lines)
+Highlight: DynamoDB table, Lambda functions, API Gateway, S3 + CloudFront.
 
-**[Run `cdk synth` in terminal]**
+**[Run in terminal:]**
+```bash
+cdk synth
+```
 
-> "CDK synthesizes this into CloudFormation — over 1000 lines of YAML that I never have to write or maintain. Let me show you."
+> "CDK synthesizes this into CloudFormation — over 1000 lines of YAML that I never have to write. Let me show you."
 
 Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 
@@ -67,103 +58,145 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 
 ## Stage 3: Add CDK Nag for Best Practices (2 min)
 
-**[In `app.py`, uncomment the CDK Nag lines]**
+**[In `app.py`, uncomment these two lines:]**
 
 ```python
 from cdk_nag import AwsSolutionsChecks
-# ...
+```
+
+```python
 cdk.Aspects.of(app).add(AwsSolutionsChecks())
 ```
 
-**[Run `cdk synth`]**
+**[Then add this block at the bottom of `skywatch/stack.py` (inside the `__init__`)]:**
 
-> "CDK Nag checks your infrastructure against AWS best practices — the same rules AWS Solutions Architects use in reviews. Let's see if our app passes."
+```python
+        # --- CDK Nag Suppressions ---
+        NagSuppressions.add_stack_suppressions(self, [
+            {"id": "AwsSolutions-IAM4", "reason": "AWS managed Lambda execution role is acceptable"},
+            {"id": "AwsSolutions-IAM5", "reason": "Wildcard permissions required for CDK bucket deployment"},
+            {"id": "AwsSolutions-L1", "reason": "Python 3.12 is the latest supported by CDK constructs"},
+            {"id": "AwsSolutions-DDB3", "reason": "Point-in-time recovery not needed for ephemeral flight data"},
+            {"id": "AwsSolutions-S1", "reason": "Access logs not needed for demo"},
+            {"id": "AwsSolutions-S10", "reason": "Bucket only accessed via CloudFront OAC (HTTPS)"},
+            {"id": "AwsSolutions-CFR1", "reason": "No geo restrictions needed for demo"},
+            {"id": "AwsSolutions-CFR2", "reason": "WAF not needed for demo"},
+            {"id": "AwsSolutions-CFR3", "reason": "Access logging not needed for demo"},
+            {"id": "AwsSolutions-CFR4", "reason": "Default CloudFront TLS policy acceptable for demo"},
+            {"id": "AwsSolutions-APIG1", "reason": "API access logging not needed for demo"},
+            {"id": "AwsSolutions-APIG4", "reason": "Public API — no auth needed for flight data"},
+        ])
+```
 
-It passes (because Stage 2 has suppressions for the non-AI stuff).
+**[Also add the import at the top of `stack.py`:]**
 
-> "Clean. Every finding is either fixed or explicitly suppressed with a reason. Now let's add a feature."
+```python
+from cdk_nag import NagSuppressions
+```
+
+**[Run:]**
+```bash
+cdk synth
+```
+
+> "CDK Nag checks your infrastructure against AWS best practices — the same rules Solutions Architects use. Our app passes clean. Every finding is either fixed or explicitly suppressed with a reason. Now let's add a feature."
 
 ---
 
-## Stage 4: Build the AI Feature (2 min)
+## Stage 4: Build the AI Feature — Gets Blocked (2 min)
 
-**[Explain what we're adding]**
+> "I want Claude to narrate the flights — click a plane, get an AI-generated blurb. We need Bedrock access from our API Lambda."
 
-> "I want Claude to narrate the flights — click a plane, get an AI-generated blurb. We need: Bedrock access from our API Lambda, and a MODEL_ID environment variable."
-
-**[Add to the API Lambda environment]**
+**[Add `MODEL_ID` to the API Lambda's environment dict:]**
 
 ```python
-environment={
-    **lambda_env,
-    "MODEL_ID": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-},
+            environment={
+                **lambda_env,
+                "MODEL_ID": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            },
 ```
 
-**[Add the IAM permission — intentionally too broad]**
+**[Add this IAM policy right after `secret.grant_read(api_handler)`:]**
 
 ```python
-api_handler.add_to_role_policy(iam.PolicyStatement(
-    actions=["bedrock:InvokeModel"],
-    resources=["*"],
-))
+        # Give the Lambda permission to call Bedrock
+        api_handler.add_to_role_policy(iam.PolicyStatement(
+            actions=["bedrock:InvokeModel"],
+            resources=["*"],
+        ))
 ```
 
 > "Quick and dirty — give it access to all Bedrock models. Ship it."
 
-**[Run `cdk synth`]**
+**[Run:]**
+```bash
+cdk synth
+```
 
 💥 **CDK Nag ERROR:**
 ```
+[Error at /SkyWatch/Api/ServiceRole/DefaultPolicy/Resource]
 AwsSolutions-IAM5[Resource::*]: The IAM entity contains wildcard permissions
+and does not have a cdk-nag rule suppression with evidence for those permission.
 ```
 
-> "Blocked. CDK Nag caught that `Resource: *` gives this Lambda access to every model in Bedrock — not just the one we need. This is the guardrail working."
+> "Blocked. CDK Nag caught that `Resource: *` gives this Lambda access to every model in Bedrock — not just the one we need. This is the guardrail working. It won't let me deploy an overly permissive policy."
 
 ---
 
 ## Stage 5: Fix It Right (1 min)
 
-**[Replace `resources=["*"]` with the scoped ARN]**
+**[Replace the `resources=["*"]` block with:]**
 
 ```python
-api_handler.add_to_role_policy(iam.PolicyStatement(
-    actions=["bedrock:InvokeModel"],
-    resources=[
-        f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
-        f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    ],
-))
+        # Give the Lambda permission to call Bedrock
+        api_handler.add_to_role_policy(iam.PolicyStatement(
+            actions=["bedrock:InvokeModel"],
+            resources=[
+                f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+                f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            ],
+        ))
 ```
 
-**[Run `cdk synth`]**
+**[Run:]**
+```bash
+cdk synth
+```
 
-> "Clean. Scoped to exactly the model we need."
+> "Clean. Scoped to exactly the model we need — Claude Haiku. Least privilege."
 
 ---
 
 ## Stage 6: Deploy and See It Work (1 min)
 
-**[Run `cdk deploy`]**
+**[Run:]**
+```bash
+cdk deploy
+```
 
 > "Deploying the AI feature..."
 
-Wait for deploy (~90s). Once done, switch to browser, hard refresh, click a flight.
+Wait for deploy (~90s). Once done, switch to browser, hard refresh (Cmd+Shift+R), click a flight.
 
-> "There it is — Claude narrating the sky above PyCon. We went from idea to deployed AI feature in under 10 minutes, and a security guardrail stopped us from shipping a bad IAM policy along the way."
+The spotlight panel updates with an AI-generated blurb about the flight.
+
+> "There it is — Claude narrating the sky above PyCon. We went from idea to deployed AI feature in under 10 minutes, and a security guardrail stopped us from shipping a bad IAM policy along the way. That's CDK."
 
 ---
 
 ## Wrap
 
-> "That's CDK: Python infrastructure, best-practice guardrails, and a deploy command. Questions?"
+> "Python infrastructure, best-practice guardrails, one deploy command. Questions?"
 
 ---
 
-## Talking Points for Q&A
+## Q&A Cheat Sheet
 
-- **"How much does this cost?"** — Under $5/day. Lambda + DynamoDB + Bedrock Haiku.
-- **"Why CDK over Terraform?"** — Loops, conditionals, type safety, constructs, and Nag. All in the language you already write your app in.
-- **"What's CDK Nag checking?"** — AWS Solutions Architect best practices. IAM least privilege, encryption, logging, network security. ~100 rules.
-- **"Can I add my own rules?"** — Yes. Custom Nag packs for your org's policies.
-- **"How do you handle secrets?"** — Secrets Manager. Nothing in source code. Token injected at deploy time.
+| Question | Answer |
+|----------|--------|
+| How much does this cost? | Under $5/day. Lambda + DynamoDB + Bedrock Haiku. |
+| Why CDK over Terraform? | Loops, conditionals, type safety, constructs, Nag. All in Python. |
+| What's CDK Nag checking? | ~100 AWS Solutions Architect best-practice rules. IAM, encryption, logging, network. |
+| Can I add my own rules? | Yes. Custom Nag packs for your org's policies. |
+| How do you handle secrets? | Secrets Manager. Nothing in source code. |
