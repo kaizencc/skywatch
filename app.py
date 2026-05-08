@@ -19,6 +19,7 @@ from skywatch.stack import SkywatchStack
 app = cdk.App()
 SkywatchStack(app, "SkyWatch")
 
+# Uncomment to enable CDK Nag best-practice checks (Stage 3 of demo)
 cdk.Aspects.of(app).add(AwsSolutionsChecks())
 
 app.synth()
