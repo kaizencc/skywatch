@@ -62,7 +62,7 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 
 **[In Claude Code, prompt something like:]**
 
-> "Add an AI spotlight feature. When a user POSTs to /spotlight with a flight's callsign and info, call Bedrock Claude Haiku to generate a one-sentence aviation spotter blurb, store the result in DynamoDB. I need both the handler code and the CDK infra — add the Bedrock IAM permission and MODEL_ID environment variable to the API Lambda."
+> "Add an AI spotlight feature. When a user POSTs to /spotlight with a flight's callsign and info, call Bedrock Claude Haiku to generate a one-sentence aviation spotter blurb, store the result in DynamoDB. The frontend sends FlightAware data along with the request since OpenSky only gives us position — we need the airline, route, and aircraft type from FlightAware to make the blurb interesting. I need both the handler code and the CDK infra — add the Bedrock IAM permission and MODEL_ID environment variable to the API Lambda."
 
 **[Let Claude Code generate the code. It should:]**
 1. Add the Bedrock client + MODEL_ID env var to `handler.py`
@@ -82,6 +82,15 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 ```
 
 > "Quick and dirty — access to all Bedrock models. Ship it."
+
+**[Also remove the IAM5 suppression from the Nag suppressions list in `stack.py`:]**
+
+Delete this line:
+```python
+            {"id": "AwsSolutions-IAM5", "reason": "Wildcard scoped to DynamoDB table and S3 bucket ARNs"},
+```
+
+> "We had a blanket suppression for wildcards on known resources. Now that we're adding a new IAM policy, let's remove it and let Nag check everything fresh."
 
 **[Run:]**
 ```bash

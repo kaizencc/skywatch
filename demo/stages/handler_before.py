@@ -46,6 +46,8 @@ def handler(event, context):
 
     if path == "/flights":
         return get_flights()
+    elif path == "/spotlight" and method == "POST":
+        return response(200, {"text": "✨ AI spotlight coming soon!", "icao24": ""})
     elif path == "/spotlight":
         return get_spotlight()
     elif path.startswith("/flight/"):
@@ -72,12 +74,7 @@ def get_flights():
 
 
 def get_spotlight():
-    try:
-        resp = table.get_item(Key={"pk": "SPOTLIGHT", "sk": "current"})
-        item = resp.get("Item", {})
-        return response(200, {"text": item.get("text", ""), "icao24": item.get("icao24", ""), "updated": item.get("updated", 0)})
-    except Exception:
-        return response(200, {"text": "", "updated": 0})
+    return response(200, {"text": "", "icao24": "", "updated": 0})
 
 
 def add_community_city(event):
