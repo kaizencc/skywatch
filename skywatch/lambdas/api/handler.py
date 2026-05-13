@@ -1,4 +1,4 @@
-"""API handler: serves flight data, spotlight, and community cities."""
+"""API handler: serves flight data and community cities."""
 import json
 import os
 import time
@@ -9,15 +9,12 @@ import boto3
 
 TABLE_NAME = os.environ["TABLE_NAME"]
 SECRET_NAME = os.environ.get("SECRET_NAME", "skywatch/api-keys")
-MODEL_ID = os.environ.get("MODEL_ID", "")
 FLIGHTAWARE_URL = "https://aeroapi.flightaware.com/aeroapi"
 
 ddb = boto3.resource("dynamodb")
 table = ddb.Table(TABLE_NAME)
-bedrock = boto3.client("bedrock-runtime")
 secrets_client = boto3.client("secretsmanager")
 
-# Cache secrets in memory for Lambda reuse
 _secrets_cache = None
 
 
@@ -50,7 +47,7 @@ def handler(event, context):
     if path == "/flights":
         return get_flights()
     elif path == "/spotlight" and method == "POST":
-        return generate_spotlight(event)
+        return response(200, {"text": "✨ AI spotlight coming soon!", "icao24": ""})
     elif path == "/spotlight":
         return get_spotlight()
     elif path.startswith("/flight/"):
@@ -67,7 +64,7 @@ def handler(event, context):
 
 
 def get_flights():
-    cutoff = int(time.time()) - 90  # Only flights updated in the last 90s
+    cutoff = int(time.time()) - 90
     resp = table.query(
         KeyConditionExpression=boto3.dynamodb.conditions.Key("pk").eq("FLIGHT"),
         FilterExpression=boto3.dynamodb.conditions.Attr("updated").gte(cutoff),
@@ -77,83 +74,7 @@ def get_flights():
 
 
 def get_spotlight():
-    try:
-        resp = table.get_item(Key={"pk": "SPOTLIGHT", "sk": "current"})
-        item = resp.get("Item", {})
-        return response(200, {"text": item.get("text", ""), "icao24": item.get("icao24", ""), "updated": item.get("updated", 0)})
-    except Exception:
-        return response(200, {"text": "", "updated": 0})
-
-
-def generate_spotlight(event):
-    """Generate an AI blurb for a user-selected flight."""
-    try:
-        body = json.loads(event.get("body", "{}"))
-    except (json.JSONDecodeError, TypeError):
-        return response(400, {"error": "Invalid JSON"})
-
-    callsign = body.get("callsign", "").strip()
-    icao24 = body.get("icao24", "")
-    flight_info = body.get("flight_info", {})
-
-    if not callsign:
-        return response(400, {"error": "callsign required"})
-
-    # Build context for Claude
-    details = []
-    if flight_info.get("operator"):
-        details.append(f"Operator: {flight_info['operator']}")
-    if flight_info.get("route"):
-        details.append(f"Route: {flight_info['route']}")
-    if flight_info.get("aircraft_type"):
-        details.append(f"Aircraft: {flight_info['aircraft_type']}")
-    if flight_info.get("status"):
-        details.append(f"Status: {flight_info['status']}")
-    if body.get("altitude"):
-        details.append(f"Altitude: {body['altitude']}m")
-    if body.get("velocity"):
-        details.append(f"Speed: {body['velocity']}m/s")
-    if body.get("country"):
-        details.append(f"Country: {body['country']}")
-
-    details_text = "\n".join(details) if details else "No additional info available"
-
-    prompt = f"""You are an enthusiastic aviation spotter narrating a live flight tracker at PyCon in Long Beach, California.
-A viewer just clicked on this flight:
-
-Callsign: {callsign}
-{details_text}
-
-Write exactly one punchy, fun sentence about this flight that would make a conference attendee say "cool!"
-Be specific — mention the airline, destination, aircraft type, or any interesting fact.
-Respond with ONLY the sentence, starting with "✨ Spotted:"
-"""
-
-    try:
-        resp = bedrock.invoke_model(
-            modelId=MODEL_ID,
-            body=json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 150,
-                "messages": [{"role": "user", "content": prompt}],
-            }),
-        )
-        result = json.loads(resp["body"].read())
-        text = result["content"][0]["text"].strip()
-    except Exception as e:
-        text = f"✨ Spotted: {callsign} — {flight_info.get('route', 'flying overhead')}!"
-
-    # Store spotlight
-    table.put_item(Item={
-        "pk": "SPOTLIGHT",
-        "sk": "current",
-        "text": text,
-        "icao24": icao24,
-        "updated": int(time.time()),
-        "ttl": int(time.time()) + 300,
-    })
-
-    return response(200, {"text": text, "icao24": icao24})
+    return response(200, {"text": "", "icao24": "", "updated": 0})
 
 
 def add_community_city(event):
@@ -176,7 +97,7 @@ def add_community_city(event):
         "latitude": Decimal(str(lat)),
         "longitude": Decimal(str(lon)),
         "added": int(time.time()),
-        "ttl": int(time.time()) + 604800,  # 7 day TTL
+        "ttl": int(time.time()) + 604800,
     })
 
     return response(200, {"message": f"Added {city}"})
@@ -201,12 +122,10 @@ def clear_community():
 
 
 def get_flight_info(callsign):
-    """Look up flight details from cache or FlightAware AeroAPI."""
     callsign = callsign.strip().upper()
     if not callsign:
         return response(400, {"error": "callsign required"})
 
-    # Check cache first (1 hour TTL)
     try:
         cached = table.get_item(Key={"pk": "FLIGHTINFO", "sk": callsign})
         item = cached.get("Item")
@@ -215,7 +134,6 @@ def get_flight_info(callsign):
     except Exception:
         pass
 
-    # Call FlightAware AeroAPI
     api_key = get_flightaware_key()
     if not api_key:
         return response(200, {"callsign": callsign, "error": "FlightAware not configured"})
@@ -231,13 +149,10 @@ def get_flight_info(callsign):
     except Exception as e:
         return response(200, {"callsign": callsign, "error": f"FlightAware lookup failed: {e}"})
 
-    # Find the most relevant flight (in-progress or most recent)
     flights = fa_data.get("flights", [])
     if not flights:
-        result = {"callsign": callsign, "error": "No flight data found"}
-        return response(200, result)
+        return response(200, {"callsign": callsign, "error": "No flight data found"})
 
-    # Prefer en route flights, fall back to most recent
     flight = next((f for f in flights if f.get("status", "").startswith("En Route")), flights[0])
 
     origin = flight.get("origin") or {}
@@ -256,7 +171,6 @@ def get_flight_info(callsign):
         "route": f"{origin_label} → {dest_label}",
     }
 
-    # Cache for 1 hour
     table.put_item(Item={
         "pk": "FLIGHTINFO",
         "sk": callsign,
