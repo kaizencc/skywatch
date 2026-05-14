@@ -60,7 +60,15 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 
 > "Now I want to add a feature — click a plane, get an AI-generated blurb from Claude on Bedrock. I'm going to use Claude Code with the aws-cdk skill to build this."
 
-**[In Claude Code, prompt something like:]**
+**[In Claude Code, first load the aws-cdk skill:]**
+
+```
+/aws-core:aws-cdk
+```
+
+> "This is the aws-cdk skill from the Agent Toolkit for AWS — it's open source at github.com/aws/agent-toolkit-for-aws. It gives Claude Code domain expertise on CDK constructs, IAM patterns, deployment workflows, and troubleshooting. Think of it as a CDK expert sitting in the session with me."
+
+**[Then prompt:]**
 
 > "Add an AI spotlight feature. When a user POSTs to /spotlight with a flight's callsign and info, call Bedrock Claude Haiku to generate a one-sentence aviation spotter blurb, store the result in DynamoDB. The frontend sends FlightAware data along with the request since OpenSky only gives us position — we need the airline, route, and aircraft type from FlightAware to make the blurb interesting. I need both the handler code and the CDK infra — add the Bedrock IAM permission and MODEL_ID environment variable to the API Lambda."
 
@@ -82,15 +90,6 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 ```
 
 > "Quick and dirty — access to all Bedrock models. Ship it."
-
-**[Also remove the IAM5 suppression from the Nag suppressions list in `stack.py`:]**
-
-Delete this line:
-```python
-            {"id": "AwsSolutions-IAM5", "reason": "Wildcard scoped to DynamoDB table and S3 bucket ARNs"},
-```
-
-> "We had a blanket suppression for wildcards on known resources. Now that we're adding a new IAM policy, let's remove it and let Nag check everything fresh."
 
 **[Run:]**
 ```bash

@@ -181,7 +181,7 @@ class SkywatchStack(Stack):
         # │  Uploads frontend assets + generated config.js           │
         # │  Invalidates CloudFront cache on deploy                  │
         # └─────────────────────────────────────────────────────────┘
-        s3deploy.BucketDeployment(
+        deploy = s3deploy.BucketDeployment(
             self, "DeploySite",
             sources=[
                 s3deploy.Source.asset(os.path.join(os.path.dirname(__file__), "../frontend")),
@@ -198,7 +198,6 @@ class SkywatchStack(Stack):
         # --- CDK Nag Suppressions ---
         NagSuppressions.add_stack_suppressions(self, [
             {"id": "AwsSolutions-IAM4", "reason": "AWS managed Lambda execution role is acceptable"},
-            {"id": "AwsSolutions-IAM5", "reason": "Wildcard permissions required for CDK bucket deployment and cross-region Bedrock"},
             {"id": "AwsSolutions-L1", "reason": "Python 3.12 is the latest supported by CDK constructs"},
             {"id": "AwsSolutions-DDB3", "reason": "Point-in-time recovery not needed for ephemeral flight data"},
             {"id": "AwsSolutions-S1", "reason": "Access logs not needed for demo"},
@@ -210,3 +209,6 @@ class SkywatchStack(Stack):
             {"id": "AwsSolutions-APIG1", "reason": "API access logging not needed for demo"},
             {"id": "AwsSolutions-APIG4", "reason": "Public API — no auth needed for flight data"},
         ])
+        NagSuppressions.add_resource_suppressions(deploy, [
+            {"id": "AwsSolutions-IAM5", "reason": "BucketDeployment requires wildcard for S3 object keys"},
+        ], apply_to_children=True)
