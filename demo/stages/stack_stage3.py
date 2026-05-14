@@ -181,7 +181,7 @@ class SkywatchStack(Stack):
         # │  Uploads frontend assets + generated config.js           │
         # │  Invalidates CloudFront cache on deploy                  │
         # └─────────────────────────────────────────────────────────┘
-        deploy = s3deploy.BucketDeployment(
+        s3deploy.BucketDeployment(
             self, "DeploySite",
             sources=[
                 s3deploy.Source.asset(os.path.join(os.path.dirname(__file__), "../frontend")),
@@ -209,6 +209,8 @@ class SkywatchStack(Stack):
             {"id": "AwsSolutions-APIG1", "reason": "API access logging not needed for demo"},
             {"id": "AwsSolutions-APIG4", "reason": "Public API — no auth needed for flight data"},
         ])
-        NagSuppressions.add_resource_suppressions(deploy, [
-            {"id": "AwsSolutions-IAM5", "reason": "BucketDeployment requires wildcard for S3 object keys"},
-        ], apply_to_children=True)
+        # Suppress IAM5 only on the BucketDeployment custom resource (it needs S3 wildcards)
+        NagSuppressions.add_resource_suppressions_by_path(self,
+            "/SkyWatch/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource",
+            [{"id": "AwsSolutions-IAM5", "reason": "BucketDeployment requires wildcard for S3 object operations"}],
+        )
