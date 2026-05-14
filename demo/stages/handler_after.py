@@ -14,7 +14,7 @@ FLIGHTAWARE_URL = "https://aeroapi.flightaware.com/aeroapi"
 
 ddb = boto3.resource("dynamodb")
 table = ddb.Table(TABLE_NAME)
-bedrock = boto3.client("bedrock-runtime")
+bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
 secrets_client = boto3.client("secretsmanager")
 
 # Cache secrets in memory for Lambda reuse
@@ -141,6 +141,7 @@ Respond with ONLY the sentence, starting with "✨ Spotted:"
         result = json.loads(resp["body"].read())
         text = result["content"][0]["text"].strip()
     except Exception as e:
+        print(f"Bedrock error: {e}")
         text = f"✨ Spotted: {callsign} — {flight_info.get('route', 'flying overhead')}!"
 
     # Store spotlight

@@ -70,7 +70,7 @@ Optionally open `cdk.out/SkyWatch.template.json` and scroll to show the volume.
 
 **[Then prompt:]**
 
-> "Add an AI spotlight feature. When a user POSTs to /spotlight with a flight's callsign and info, call Bedrock Claude Haiku to generate a one-sentence aviation spotter blurb, store the result in DynamoDB. The frontend sends FlightAware data along with the request since OpenSky only gives us position — we need the airline, route, and aircraft type from FlightAware to make the blurb interesting. I need both the handler code and the CDK infra — add the Bedrock IAM permission and MODEL_ID environment variable to the API Lambda."
+> "Add an AI spotlight feature. When a user POSTs to /spotlight with a flight's callsign and info, call Bedrock Claude Haiku to generate a one-sentence aviation spotter blurb, store the result in DynamoDB. The frontend sends FlightAware data along with the request since OpenSky only gives us position — we need the airline, route, and aircraft type from FlightAware to make the blurb interesting. I need both the handler code and the CDK infra — add the Bedrock IAM permission and MODEL_ID environment variable to the API Lambda. Use the cross-region inference profile for Haiku since on-demand requires it, and make sure the IAM policy covers the regions it can route to."
 
 **[Let Claude Code generate the code. It should:]**
 1. Add the Bedrock client + MODEL_ID env var to `handler.py`
@@ -105,7 +105,7 @@ and does not have a cdk-nag rule suppression with evidence for those permission.
 
 **Backup if you need it:**
 ```bash
-cp demo/stages/stack_stage2.py skywatch/stack.py
+cp demo/stages/stack_stage3.py skywatch/stack.py
 cp demo/stages/handler_after.py skywatch/lambdas/api/handler.py
 ```
 
@@ -129,7 +129,9 @@ cp demo/stages/handler_after.py skywatch/lambdas/api/handler.py
         api_handler.add_to_role_policy(iam.PolicyStatement(
             actions=["bedrock:InvokeModel"],
             resources=[
-                f"arn:aws:bedrock:{self.region}::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+                f"arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+                f"arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
+                f"arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
                 f"arn:aws:bedrock:{self.region}:{self.account}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0",
             ],
         ))
